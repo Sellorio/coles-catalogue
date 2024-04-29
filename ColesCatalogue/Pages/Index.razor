@@ -1,0 +1,135 @@
+﻿@page "/"
+@using ColesCatalogue.Pages.IndexPage;
+@inject ISpecialsService SpecialsService
+@inject IFavouriteItemService FavouriteItemService
+@inject IHiddenItemService HiddenItemService
+@inject IJSRuntime JSRuntime
+
+<MudText Typo="Typo.h1">Coles Catalogue</MudText>
+
+<MudTable @ref="table" Items="specials?.Where(FilterCheck) ?? new List<SpecialsItem>()" Loading="specials == null" RowsPerPage="40">
+    <ToolBarContent>
+        <MudGrid>
+            <MudItem>
+                <MudCheckBox Label="Hidden Specials" @bind-Checked="onlyShowHidden" />
+            </MudItem>
+            <MudItem Class="mt-3 ml-4">
+                <MudText Typo="Typo.subtitle1">Minimum Savings</MudText>
+            </MudItem>
+            <MudItem>
+                <MudNumericField Label="Normal" @bind-Value="minimumSavingsPercent" Min="0" Max="80" Step="5" Disabled="onlyShowHidden" />
+            </MudItem>
+            <MudItem>
+                <MudNumericField Label="Favourites" @bind-Value="minimumFavouritesSavingsPercent" Min="0" Max="80" Step="5" Disabled="onlyShowHidden" />
+            </MudItem>
+            <MudItem>
+                <MudNumericField Label="Hidden" @bind-Value="minimumHiddenSavingsPercent" Min="0" Max="100" Step="5" Disabled="onlyShowHidden" />
+            </MudItem>
+        </MudGrid>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Item</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh>Savings</MudTh>
+        <MudTh>Price</MudTh>
+        <MudTh Style="width:150px">Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        @{
+            var isHidden = hiddenItems.Contains(context.ItemId);
+        }
+
+        <SpecialsItemTr SpecialsItem="context" IsFavourite="favouriteItems.Contains(context.ItemId)" IsHidden="isHidden"
+                        OnFavourite="() => FavouriteAsync(context.ItemId)" OnUnfavourite="() => UnfavouriteAsync(context.ItemId)"
+                        OnHide="() => HideAsync(context.ItemId)" OnUnhide="() => UnhideAsync(context.ItemId)" />
+    </RowTemplate>
+    <NoRecordsContent>
+        No specials found :(
+    </NoRecordsContent>
+    <LoadingContent>
+        Retrieving Specials...
+
+        @if (progressTracker?.Current != null)
+        {
+            <text> (@progressTracker.Current of @progressTracker.Max)</text>
+        }
+    </LoadingContent>
+    <PagerContent>
+        <MudPagination Selected="table.CurrentPage + 1"
+                       SelectedChanged="@(async x => { table.NavigateTo(x - 1); await JSRuntime.InvokeVoidAsync("window.scrollTo", 0, 0); })"
+                       Count="@((table.GetFilteredItemsCount() + table.RowsPerPage - 1) / table.RowsPerPage)" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    MudTable<SpecialsItem> table;
+
+    HashSet<int> favouriteItems;
+    HashSet<int> hiddenItems;
+    IList<SpecialsItem> specials;
+    ProgressTracker progressTracker;
+
+    bool onlyShowHidden;
+    int minimumSavingsPercent = 40;
+    int minimumFavouritesSavingsPercent = 30;
+    int minimumHiddenSavingsPercent = 75;
+
+    protected override async Task OnInitializedAsync()
+    {
+        favouriteItems = new HashSet<int>(await FavouriteItemService.GetFavouritesAsync());
+        hiddenItems = new HashSet<int>(await HiddenItemService.GetHiddenItemsAsync());
+
+        progressTracker = new ProgressTracker();
+        progressTracker.ProgressChanged += StateHasChanged;
+        specials = (await SpecialsService.GetSpecialsAsync(progressTracker)).OrderBy(x => favouriteItems.Contains(x.ItemId) ? 0 : 1).ToList();
+        progressTracker = null;
+    }
+
+    async Task FavouriteAsync(int itemId)
+    {
+        await FavouriteItemService.FavouriteAsync(itemId);
+        favouriteItems.Add(itemId);
+    }
+
+    async Task UnfavouriteAsync(int itemId)
+    {
+        await FavouriteItemService.UnfavouriteAsync(itemId);
+        favouriteItems.Remove(itemId);
+    }
+
+    async Task HideAsync(int itemId)
+    {
+        await HiddenItemService.HideAsync(itemId);
+        hiddenItems.Add(itemId);
+    }
+
+    async Task UnhideAsync(int itemId)
+    {
+        await HiddenItemService.UnhideAsync(itemId);
+        hiddenItems.Remove(itemId);
+    }
+
+    bool FilterCheck(SpecialsItem specialsItem)
+    {
+        bool isHidden = hiddenItems.Contains(specialsItem.ItemId);
+        bool isFavourite = favouriteItems.Contains(specialsItem.ItemId);
+
+        if (onlyShowHidden)
+        {
+            return isHidden;
+        }
+
+        if (isFavourite)
+        {
+            return specialsItem.SavingsPercent >= minimumFavouritesSavingsPercent;
+        }
+        else if (isHidden)
+        {
+            return specialsItem.SavingsPercent >= minimumHiddenSavingsPercent;
+        }
+        else
+        {
+            return specialsItem.SavingsPercent >= minimumSavingsPercent;
+        }
+    }
+}

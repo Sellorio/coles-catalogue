@@ -1,0 +1,67 @@
+﻿<MudTd>
+    <a href="https://www.coles.com.au/product/@SpecialsItem.ItemId">
+        <div style="display:flex; align-items:center">
+            <img width="128" height="128" style="margin-right:10px" src="@SpecialsItem.ItemImageUrl">
+            @SpecialsItem.ItemName
+        </div>
+    </a>
+</MudTd>
+<MudTd>
+    @SpecialsItem.SpecialDescription
+</MudTd>
+<MudTd>
+    @SpecialsItem.SavingsPercent.ToString("N0")%
+</MudTd>
+<MudTd>
+    <div>@SpecialsItem.CurrentPrice / @SpecialsItem.NormalPrice</div>
+
+    @if (SpecialsItem.CurrentPricePerAmountDescription != null)
+    {
+        <div style="font-size:0.75em">
+            Now: @SpecialsItem.CurrentPricePerAmountDescription<br>
+            Was: @SpecialsItem.NormalPricePerAmountDescription
+        </div>
+    }
+</MudTd>
+<MudTd>
+    @if (!IsHidden)
+    {
+        <MudIconButton Icon="@Icons.Material.Outlined.VisibilityOff" Color="Color.Default" OnClick="OnHide" />
+    }
+    else
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.VisibilityOff" Color="Color.Default" OnClick="OnUnhide" />
+    }
+
+    @if (!IsFavourite)
+    {
+        <MudIconButton Icon="@Icons.Material.Outlined.Grade" Color="Color.Default" OnClick="OnFavourite" />
+    }
+    else
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.Grade" Color="Color.Warning" OnClick="OnUnfavourite" />
+    }
+</MudTd>
+
+@code {
+    [Parameter]
+    public SpecialsItem SpecialsItem { get; set; }
+
+    [Parameter]
+    public bool IsFavourite { get; set; }
+
+    [Parameter]
+    public bool IsHidden { get; set; }
+
+    [Parameter]
+    public EventCallback OnFavourite { get; set; }
+
+    [Parameter]
+    public EventCallback OnUnfavourite { get; set; }
+
+    [Parameter]
+    public EventCallback OnHide { get; set; }
+
+    [Parameter]
+    public EventCallback OnUnhide { get; set; }
+}
